@@ -22,7 +22,22 @@ const userRouterCart = require("./routes/carts.js")
 app.use("/api/carts", userRouterCart)
 
 const realTime = require("./routes/realTimeProducts")
-app.use("/realTimeProducts", realTime)
+app.use("/", realTime)
+
+
+//Rutas de MONGODB
+const mongoose = require ("mongoose");
+const userRouterDB =require ("./routes/productosDB");
+app.use("/productosDB", userRouterDB)
+
+try{ 
+    mongoose.connect("mongodb+srv://crucciluciano:123456luciano@crucciluciano.6lrtemq.mongodb.net/productos?retryWrites=true&w=majority", {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+    }) 
+    console.log("conexion a mongo exitosa") 
+}
+catch(error){console.log(error)}
 
 
 //{Handlebars
@@ -36,18 +51,16 @@ app.engine("hbs", exphbs.engine({
 app.set('views', './src/views/partials');
 app.set('view engine', 'hbs');
 
-const viewsRouter = require("./routes/views")
-app.use("/realtimeproducts",viewsRouter)
+const viewsRouter = require("./routes/views");
+app.use("/",viewsRouter)
 
-const publicRouter = require("./routes/views")
-app.use("/",publicRouter)
 //Handlebars}
 
-
-const PORT = 8080
-const Server = httpServer.listen(PORT, ()=> console.log(`Server running on PORT ${PORT}`))
+const PORT = process.env.PORT || 8080
+const Server = httpServer.listen(PORT, ()=> console.log(`Server running on PORT ${Server.address().port}`))
 Server.on("error", error => console.log(error))
 
+let objProd = {}
 
 io.on('connection', async socket => {
     let arr = await manager.getProducts();
@@ -56,13 +69,33 @@ io.on('connection', async socket => {
     io.sockets.emit('messages', json)
 
     socket.on('idEliminar', async data => {
-        console.log(data)
-        await manager.deleteProduct(data);
+        let arr =  await manager.deleteProduct(data);
+        let json = JSON.stringify(arr)
+        io.sockets.emit("messages",json)
     })
     
-    socket.on('addProd', async data => {
+    socket.on('title', title => {
+        objProd.title = title
+    })
 
-        await manager.addProduct(data);
+    socket.on('descripction', descripction => {
+        objProd.descripction = descripction
+    })
+
+    socket.on('price', price => {
+        objProd.price = price
+    })
+
+    socket.on('code', code => {
+        objProd.code = code
+        
+    })
+
+    socket.on('stock', async stock => {
+        objProd.stock = stock
+        let arr =  await manager.addProduct(objProd);
+        let json = JSON.stringify(arr)
+        io.sockets.emit("messages",json)
     })
 })
 
